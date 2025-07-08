@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_URI} !^/(manage|create)$
+RewriteRule ^([^/]+)$ index.php?slug=$1 [QSA,L]
+RewriteRule ^manage$ manage.php [QSA,L]
+RewriteRule ^create$ create.php [QSA,L]

@@ -1,0 +1,46 @@
+CREATE TABLE hosts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(255) UNIQUE,
+  password_hash VARCHAR(255)
+);
+
+CREATE TABLE giveaways (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  host_id INT,
+  slug VARCHAR(255) UNIQUE NOT NULL,
+  title VARCHAR(255),
+  countdown_datetime DATETIME NOT NULL,
+  winner VARCHAR(255),
+  FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+);
+
+CREATE TABLE entries (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  giveaway_id INT,
+  username VARCHAR(255),
+  FOREIGN KEY (giveaway_id) REFERENCES giveaways(id) ON DELETE CASCADE
+);
+
+ALTER TABLE giveaways ADD COLUMN es_link VARCHAR(500);
+ALTER TABLE giveaways ADD COLUMN management_code VARCHAR(32) UNIQUE;
+
+-- 1. DATABASE CHANGES
+-- Add winner count to giveaways table
+ALTER TABLE giveaways ADD COLUMN winner_count INT DEFAULT 1;
+
+-- Create winners table for multiple winners
+CREATE TABLE winners (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  giveaway_id INT,
+  username VARCHAR(255),
+  position INT DEFAULT 1,
+  FOREIGN KEY (giveaway_id) REFERENCES giveaways(id) ON DELETE CASCADE
+);
+
+ALTER TABLE giveaways ADD COLUMN winner_selection_mode ENUM('auto', 'manual') DEFAULT 'manual';
+
+ALTER TABLE giveaways 
+ADD COLUMN created_ip VARCHAR(45) NULL AFTER winner_selection_mode,
+ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER created_ip;
+
+CREATE INDEX idx_giveaways_rate_limit ON giveaways (created_ip, created_at);
