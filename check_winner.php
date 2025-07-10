@@ -84,7 +84,7 @@ try {
             if (count($winners) > 0) {
                 // Insert winners into database with status
                 $stmt = $pdo->prepare("INSERT INTO winners (giveaway_id, username, position, status) VALUES (?, ?, ?, 'active')");
-                $stmt2 = $pdo->prepare("INSERT INTO winner_history (giveaway_id, username, position, action) VALUES (?, ?, ?, 'selected')");
+                $stmt2 = $pdo->prepare("INSERT INTO winner_history (giveaway_id, username, position, action, created_at) VALUES (?, ?, ?, 'selected', UTC_TIMESTAMP())");
                 
                 foreach ($winners as $position => $winner) {
                     $stmt->execute([$giveaway_id, $winner, $position + 1]);

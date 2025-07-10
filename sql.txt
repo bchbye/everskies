@@ -44,3 +44,65 @@ ADD COLUMN created_ip VARCHAR(45) NULL AFTER winner_selection_mode,
 ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER created_ip;
 
 CREATE INDEX idx_giveaways_rate_limit ON giveaways (created_ip, created_at);
+
+ALTER TABLE giveaways ADD COLUMN verified TINYINT(1) DEFAULT 0;
+ALTER TABLE winner_history MODIFY COLUMN action ENUM('selected', 'disqualified', 'entry_removed');
+
+-- Create banned_words table
+CREATE TABLE banned_words (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    word VARCHAR(100) NOT NULL,
+    category ENUM('profanity', 'spam', 'inappropriate', 'reserved') DEFAULT 'profanity',
+    severity ENUM('low', 'medium', 'high') DEFAULT 'medium',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_word (word)
+);
+
+-- Insert initial banned words
+INSERT INTO banned_words (word, category, severity) VALUES
+-- High severity profanity
+('fuck', 'profanity', 'high'),
+('shit', 'profanity', 'high'),
+('bitch', 'profanity', 'high'),
+('pussy', 'profanity', 'high'),
+('dick', 'profanity', 'high'),
+('cock', 'profanity', 'high'),
+('cunt', 'profanity', 'high'),
+('whore', 'profanity', 'high'),
+('hoe', 'profanity', 'high'),
+('slut', 'profanity', 'high'),
+('bastard', 'profanity', 'medium'),
+('ass', 'profanity', 'medium'),
+('damn', 'profanity', 'low'),
+('hell', 'profanity', 'low'),
+
+-- Inappropriate content
+('sex', 'inappropriate', 'high'),
+('porn', 'inappropriate', 'high'),
+('nude', 'inappropriate', 'high'),
+('naked', 'inappropriate', 'high'),
+('kill', 'inappropriate', 'high'),
+('die', 'inappropriate', 'high'),
+('suicide', 'inappropriate', 'high'),
+('drug', 'inappropriate', 'medium'),
+('hate', 'inappropriate', 'medium'),
+
+-- Spam content
+('discord.gg', 'spam', 'high'),
+('bit.ly', 'spam', 'high'),
+('free money', 'spam', 'high'),
+('get rich', 'spam', 'high'),
+('buy now', 'spam', 'medium'),
+('click here', 'spam', 'medium'),
+('subscribe', 'spam', 'low'),
+('follow me', 'spam', 'low'),
+
+-- Reserved system words
+('admin', 'reserved', 'high'),
+('api', 'reserved', 'high'),
+('www', 'reserved', 'high'),
+('mail', 'reserved', 'high'),
+('create', 'reserved', 'medium'),
+('manage', 'reserved', 'medium'),
+('help', 'reserved', 'medium'),
+('support', 'reserved', 'medium');

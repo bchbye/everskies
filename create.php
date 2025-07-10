@@ -2,6 +2,18 @@
 include 'db.php';
 include 'content_filter.php'; // Include the content filter
 
+// Add after session_start()
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// For POST requests, check CSRF
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die('CSRF token mismatch');
+    }
+}
+
 $error = '';
 $success = '';
 $giveaway_data = null;
@@ -14,6 +26,31 @@ function generateManagementCode() {
 // Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+		
+		// RECAPTCHA VALIDATION FIRST
+        $recaptcha_secret = '6Lf6O30rAAAAAKEdgZJdA8bpLwyOAYYdMMYAST8e'; // Replace with your secret key
+        $recaptcha_response = $_POST['g-recaptcha-response'] ?? '';
+        
+        if (empty($recaptcha_response)) {
+            throw new Exception("Please complete the reCAPTCHA verification.");
+        }
+        
+        // Verify reCAPTCHA with Google
+        $verify_url = 'https://www.google.com/recaptcha/api/siteverify';
+        $verify_data = [
+            'secret' => $recaptcha_secret,
+            'response' => $recaptcha_response,
+            'remoteip' => $_SERVER['REMOTE_ADDR']
+        ];
+        
+        $verify_response = file_get_contents($verify_url . '?' . http_build_query($verify_data));
+        $verify_result = json_decode($verify_response, true);
+        
+        if (!$verify_result['success']) {
+            throw new Exception("reCAPTCHA verification failed. Please try again.");
+        }
+		
+		
         // Get form data
         $title = trim($_POST['title']);
         $slug = trim($_POST['slug']);
@@ -307,7 +344,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 12px;
         }
         .btn:hover { background: #e60073; }
+		h1 {
+    color: #ff3399;
+    margin-bottom: 5px;
+    font-size: 2rem;
+    border-bottom: 2px solid #ff99cc;
+    padding-bottom: 8px;
+    display: inline-block;
+}
+
+.tagline {
+    color: #ff99cc;
+    font-size: 11px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+}
+h1.form-title {
+    border-bottom: none;
+}
+.logo-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.logo-link:hover {
+    text-decoration: none !important;
+}
+
+.logo-link:hover h1 {
+    color: #e60073; /* slightly darker pink on hover */
+}
+.g-recaptcha {
+    transform: scale(0.9);
+    transform-origin: 0 0;
+    margin: 10px 0;
+}
+
+@media (max-width: 400px) {
+    .g-recaptcha {
+        transform: scale(0.75);
+    }
+}
     </style>
+	<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
     <?php if ($success && $giveaway_data): ?>
@@ -343,10 +424,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="/create" class="btn">Create Another</a>
             </div>
         </div>
+		
+		<script>
+// Show popup immediately when page loads
+window.addEventListener('DOMContentLoaded', function() {
+    showManagementCodePopup();
+});
+
+function showManagementCodePopup() {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    // Create popup
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+        background: #fff0f5;
+        border: 3px solid #ff3399;
+        border-radius: 8px;
+        padding: 30px;
+        max-width: 400px;
+        text-align: center;
+        font-family: 'Press Start 2P', cursive;
+        box-shadow: 0 0 20px rgba(255, 51, 153, 0.5);
+        animation: pulse 1s infinite;
+    `;
+    
+    popup.innerHTML = `
+        <h2 style="color: #ff3399; margin-bottom: 20px;">🚨 IMPORTANT! 🚨</h2>
+        <p style="font-size: 12px; margin-bottom: 20px;">Save your Management Code NOW!</p>
+        <div id="managementCode" onclick="copyCode()" style="background: #ff3399; color: white; padding: 15px; border-radius: 4px; font-size: 16px; letter-spacing: 2px; margin: 15px 0; cursor: pointer; transition: background 0.3s;">
+    <?= htmlspecialchars($giveaway_data['management_code']) ?>
+</div>
+<p style="font-size: 9px; color: #333; margin-top: -10px;">Click code to copy</p>
+
+         <p style="font-size: 10px; color: #ff0000; margin-bottom: 20px; line-height: 1.4;">
+        ⚠️ Cannot be recovered if lost!<br>
+        📝 Save it + screenshot this popup
+    </p>
+        <button onclick="closePopup()" style="background: #ff3399; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-family: 'Press Start 2P', cursive; cursor: pointer;">
+            I've Saved It!
+        </button>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Close popup function
+    window.closePopup = function() {
+        document.body.removeChild(overlay);
+    };
+}
+
+// Copy code function
+window.copyCode = function() {
+    const code = '<?= htmlspecialchars($giveaway_data['management_code']) ?>';
+    navigator.clipboard.writeText(code).then(function() {
+        const codeDiv = document.getElementById('managementCode');
+        codeDiv.style.background = '#28a745';
+        codeDiv.innerHTML = '✅ Copied!';
+        setTimeout(() => {
+            codeDiv.style.background = '#ff3399';
+            codeDiv.innerHTML = code;
+        }, 1500);
+    });
+};
+</script>
+
     <?php else: ?>
+	
+<a href="/" class="logo-link">
+    <h1>ES Giveaways</h1>
+    <div class="tagline">countdown + winner picker</div>
+</a>
+
         <!-- Create Form -->
         <div class="form-box">
             <h1>Create Giveaway</h1>
+		<!--	<h1 class="form-title">Create Giveaway</h1> no underline -->
             
             <?php if ($error): ?>
                 <div class="error">❌ <?= htmlspecialchars($error) ?></div>
@@ -376,7 +542,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="radio" name="winner_selection_mode" value="auto" id="auto" <?= ($_POST['winner_selection_mode'] ?? 'manual') === 'auto' ? 'checked' : '' ?>>
                         <div class="radio-label">
                             ⚡ Automatic - Pick winner when countdown ends
-                            <div class="radio-description">Winners selected immediately when time runs out</div>
+                           <div class="radio-description">Winners selected immediately (entries must be added before countdown ends)</div>
                         </div>
                     </div>
                     <div class="radio-option <?= ($_POST['winner_selection_mode'] ?? 'manual') === 'manual' ? 'selected' : '' ?>" onclick="selectRadio('manual')">
@@ -396,6 +562,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="datetime-local" name="countdown_datetime" value="<?= htmlspecialchars($_POST['countdown_datetime'] ?? '') ?>" required>
                 
                 <input type="hidden" name="user_timezone" id="user_timezone">
+				
+				<label>Security Check:</label>
+<div class="g-recaptcha" data-sitekey="6Lf6O30rAAAAAFereD0SLwYPs3vljcVxuyVy4M7n" style="margin: 10px 0;"></div>
+
+
+				<input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
                 <button type="submit">Create Giveaway</button>
             </form>
             
@@ -449,5 +621,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById(mode).checked = true;
         }
     </script>
+	
 </body>
 </html>

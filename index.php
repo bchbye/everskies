@@ -131,35 +131,66 @@ if ($uri === '' || $uri === 'index.php') {
           font-size: 12px;
           margin-bottom: 20px;
         }
-      </style>
-    </head>
-    <body>
+		h1 {
+    color: #ff3399;
+    margin-bottom: 5px;
+    font-size: 2rem;
+    border-bottom: 2px solid #ff99cc;
+    padding-bottom: 8px;
+    display: inline-block;
+}
 
+.tagline {
+    color: #ff99cc;
+    font-size: 11px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+}
+h1.form-title {
+    border-bottom: none;
+}
+.logo-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.logo-link:hover h1 {
+    color: #e60073; /* slightly darker pink on hover */
+}
+  </style>
+</head>
+<body>
+
+<a href="/" class="logo-link">
     <h1>ES Giveaways</h1>
+    <div class="tagline">countdown + winner picker</div>
+</a>
     
     <div class="main-box">
-        <p class="subtitle">Create and manage your Everskies giveaways easily!</p>
+        <p class="subtitle">Create and manage your Everskies giveaways easily with automatic winner selection!</p>
         
         <a href="/create" class="create-btn">🎁 Create New Giveaway</a>
         
-        <h3>Active Giveaways</h3>
+        <h3>Verified Giveaways</h3>
         
         <?php
         // Fetch active giveaways (future countdown)
         $stmt = $pdo->prepare("
-        SELECT giveaways.slug, giveaways.title, hosts.username, giveaways.countdown_datetime, giveaways.winner_count
-        FROM giveaways
-        LEFT JOIN hosts ON giveaways.host_id = hosts.id
-        WHERE giveaways.countdown_datetime > UTC_TIMESTAMP()
-        ORDER BY giveaways.countdown_datetime ASC
-        ");
+SELECT giveaways.slug, giveaways.title, hosts.username, giveaways.countdown_datetime, giveaways.winner_count
+FROM giveaways
+LEFT JOIN hosts ON giveaways.host_id = hosts.id
+WHERE giveaways.countdown_datetime > UTC_TIMESTAMP() AND giveaways.verified = 1
+ORDER BY giveaways.countdown_datetime ASC
+");
         $stmt->execute();
         $activeGiveaways = $stmt->fetchAll(PDO::FETCH_ASSOC);
         ?>
         
         <?php if (empty($activeGiveaways)): ?>
             <div class="no-giveaways">
-                No active giveaways at the moment.<br>
+                No verified giveaways at the moment.<br>
                 Be the first to create one! 🚀
             </div>
         <?php else: ?>
@@ -227,7 +258,7 @@ $stmt->execute([$giveaway['id']]);
 $entriesWithCounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Fetch all entries usernames (including duplicates) for winner picking
-$stmt = $pdo->prepare("SELECT username FROM entries WHERE giveaway_id = ?");
+$stmt = $pdo->prepare("SELECT username FROM entries WHERE giveaway_id = ? ORDER BY RAND()");
 $stmt->execute([$giveaway['id']]);
 $allEntries = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
@@ -610,12 +641,142 @@ li.winner-other {
   line-height: 1.8;
 }
 
+h1 {
+    color: #ff3399;
+    margin-bottom: 5px;
+    font-size: 2rem;
+    border-bottom: 2px solid #ff99cc;
+    padding-bottom: 8px;
+    display: inline-block;
+}
 
+.tagline {
+    color: #ff99cc;
+    font-size: 11px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+}
+h1.form-title {
+    border-bottom: none;
+}
+.logo-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.logo-link:hover h1 {
+    color: #e60073; /* slightly darker pink on hover */
+}
+.giveaway-container {
+    background: #fff0f5;
+    border: 2px solid #ff99cc;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 90vw; /* Use 90% of viewport width */
+    min-width: 300px; /* Smaller minimum for mobile */
+    width: fit-content;
+    box-shadow: 0 0 10px rgba(255, 51, 153, 0.2);
+}
+
+@media (max-width: 400px) {
+    .giveaway-container {
+        min-width: 280px; /* Even smaller on very small screens */
+        padding: 15px; /* Less padding on mobile */
+        margin: 10px auto; /* Less margin on mobile */
+    }
+}
   </style>
 </head>
 <body>
 
-<h1><?= htmlspecialchars($giveaway['title']) ?></h1>
+<a href="/" class="logo-link">
+    <h1>ES Giveaways</h1>
+    <div class="tagline">countdown + winner picker</div>
+</a>
+
+<div class="giveaway-container">
+<h1 class="form-title"><?= htmlspecialchars($giveaway['title']) ?></h1>
+
+<!-- Add Everskies link here -->
+<?php if (!empty($giveaway['es_link'])): ?>
+<!--<p style="margin: 15px 0; font-size: 12px;"> -->
+<p style="margin: 15px 0; font-size: 12px; background: #ffe6f0; padding: 8px; border-radius: 4px; border-left: 3px solid #ff99cc;">
+  📌 <a href="<?= htmlspecialchars($giveaway['es_link']) ?>" target="_blank" 
+        style="color: #333; text-decoration: none; font-weight: bold;">
+    View Original Post on Everskies →
+  </a>
+</p>
+<?php endif; ?>
+
+
+<!-- COUNTDOWN OR WINNERS -->
+<?php if (count($winners) > 0): ?>
+  <div id="winners">
+    <?php if (count($winners) == 1): ?>
+      🎉 Winner: <?= htmlspecialchars($winners[0]['username']) ?> 🎉
+    <?php else: ?>
+      🎉 Winners: 🎉
+      <?php foreach ($winners as $winner): ?>
+        <span class="winner-item">
+          <span class="winner-position">#<?= $winner['position'] ?>:</span> <?= htmlspecialchars($winner['username']) ?>
+        </span>
+      <?php endforeach; ?>
+    <?php endif; ?>
+  </div>
+  
+  <!-- Show transparency info if there were any disqualifications -->
+  <?php if (count($disqualificationHistory) > 0): ?>
+    <div class="transparency-section">
+      <h4>ℹ️ Winner Updates</h4>
+      <?php foreach ($disqualificationHistory as $history): ?>
+        <div class="transparency-item">
+          • Previous winner <strong><?= htmlspecialchars($history['username']) ?></strong> was disqualified from position #<?= $history['position'] ?>
+          <?php if ($history['reason']): ?>
+            <br><small>Reason: <?= htmlspecialchars($history['reason']) ?></small>
+          <?php endif; ?>
+        <br><small class="timestamp" data-utc="<?= $history['created_at'] ?>"></small>
+
+<script>
+document.querySelectorAll('.timestamp').forEach(function(el) {
+    const utcTime = new Date(el.dataset.utc + ' UTC');
+    const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+    };
+    el.textContent = utcTime.toLocaleDateString('en-US', options);
+});
+</script>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+  
+<?php elseif ($needsManualPick): ?>
+  <!-- Show waiting for manual pick message -->
+  <div id="manual-waiting">
+    ⏳ Giveaway Ended ⏳<br>
+    <?php if (count($allEntries) > 0): ?>
+      Waiting for host to trigger winner selection...
+    <?php else: ?>
+      Waiting for host to add entries and trigger winner selection...
+    <?php endif; ?>
+  </div>
+  
+<?php else: ?>
+  <div id="countdown"></div>
+  <?php
+  $utc = new DateTime($giveaway['countdown_datetime'], new DateTimeZone('UTC'));
+  $utcFormatted = $utc->format('F j, Y');
+  ?>
+  <div id="endtime"><?= htmlspecialchars($utcFormatted) ?></div>
+<?php endif; ?>
 
 <h3>Entries:</h3>
 
@@ -705,57 +866,6 @@ li.winner-other {
   <p>No entries yet.</p>
 <?php endif; ?>
 
-<!-- COUNTDOWN OR WINNERS -->
-<?php if (count($winners) > 0): ?>
-  <div id="winners">
-    <?php if (count($winners) == 1): ?>
-      🎉 Winner: <?= htmlspecialchars($winners[0]['username']) ?> 🎉
-    <?php else: ?>
-      🎉 Winners: 🎉
-      <?php foreach ($winners as $winner): ?>
-        <span class="winner-item">
-          <span class="winner-position">#<?= $winner['position'] ?>:</span> <?= htmlspecialchars($winner['username']) ?>
-        </span>
-      <?php endforeach; ?>
-    <?php endif; ?>
-  </div>
-  
-  <!-- Show transparency info if there were any disqualifications -->
-  <?php if (count($disqualificationHistory) > 0): ?>
-    <div class="transparency-section">
-      <h4>ℹ️ Winner Updates</h4>
-      <?php foreach ($disqualificationHistory as $history): ?>
-        <div class="transparency-item">
-          • Previous winner <strong><?= htmlspecialchars($history['username']) ?></strong> was disqualified from position #<?= $history['position'] ?>
-          <?php if ($history['reason']): ?>
-            <br><small>Reason: <?= htmlspecialchars($history['reason']) ?></small>
-          <?php endif; ?>
-          <br><small><?= date('M j, Y g:i A', strtotime($history['created_at'])) ?></small>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-  
-<?php elseif ($needsManualPick): ?>
-  <!-- Show waiting for manual pick message -->
-  <div id="manual-waiting">
-    ⏳ Giveaway Ended ⏳<br>
-    <?php if (count($allEntries) > 0): ?>
-      Waiting for host to trigger winner selection...
-    <?php else: ?>
-      Waiting for host to add entries and trigger winner selection...
-    <?php endif; ?>
-  </div>
-  
-<?php else: ?>
-  <div id="countdown"></div>
-  <?php
-  $utc = new DateTime($giveaway['countdown_datetime'], new DateTimeZone('UTC'));
-  $utcFormatted = $utc->format('F j, Y');
-  ?>
-  <div id="endtime"><?= htmlspecialchars($utcFormatted) ?></div>
-<?php endif; ?>
-
 <!-- GIVEAWAY STATS -->
 <?php if (count($entriesWithCounts) > 0): ?>
 <div class="giveaway-stats">
@@ -767,15 +877,6 @@ li.winner-other {
 </div>
 <?php endif; ?>
 
-<!-- EVERSKIES LINK -->
-<?php if (!empty($giveaway['es_link'])): ?>
-<p>
-  Link to Everskies Giveaway: 
-  <a href="<?= htmlspecialchars($giveaway['es_link']) ?>" target="_blank">
-    Click here
-  </a>
-</p>
-<?php endif; ?>
 
 <!-- MORE GIVEAWAYS BUTTON -->
 <p style="margin-top: 30px;">
@@ -783,7 +884,7 @@ li.winner-other {
     🎁 More Giveaways
   </a>
 </p>
-
+</div>
 <!-- JAVASCRIPT -->
 <?php if (count($winners) > 0): ?>
   <script>
